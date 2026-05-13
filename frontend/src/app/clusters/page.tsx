@@ -379,8 +379,8 @@ export default function ClustersPage() {
                   <div className="mb-6">
                     <input
                       type="text"
-                      aria-label="Filter cluster members by filename"
                       placeholder="Filter by filename..."
+                      aria-label="Filter cluster members by filename"
                       value={filterText}
                       onChange={(e) => setFilterText(e.target.value)}
                       className="w-full rounded-2xl border border-[var(--frost)] bg-white/[0.03] px-4 py-3 text-sm text-[#f0f0f0] outline-none transition focus:border-[#3b9eff]"
