@@ -26,11 +26,83 @@ import {
 } from "@/lib/api";
 import { resolveMediaUrl } from "@/lib/media";
 
+type GalleryStatusFilter = "all" | "indexed" | "processing" | "failed";
+
+function getGalleryEmptyState(
+  filter: GalleryStatusFilter,
+  likedOnly: boolean,
+): {
+  title: string;
+  subtitle: string | null;
+  showUploadLink: boolean;
+} {
+  if (filter === "all") {
+    if (likedOnly) {
+      return {
+        title: "No liked images",
+        subtitle:
+          "Switch to All images and use the heart on items you want here.",
+        showUploadLink: false,
+      };
+    }
+    return {
+      title: "No images found",
+      subtitle: null,
+      showUploadLink: true,
+    };
+  }
+
+  if (filter === "indexed") {
+    if (likedOnly) {
+      return {
+        title: "No liked indexed images yet",
+        subtitle:
+          "Try uploading images or check the Processing tab for items still in progress.",
+        showUploadLink: false,
+      };
+    }
+    return {
+      title: "No indexed images yet",
+      subtitle:
+        "Try uploading images or check the Processing tab for items still in progress.",
+      showUploadLink: false,
+    };
+  }
+
+  if (filter === "processing") {
+    if (likedOnly) {
+      return {
+        title: "No liked images are processing",
+        subtitle:
+          "None of your liked images are queued or running right now.",
+        showUploadLink: false,
+      };
+    }
+    return {
+      title: "All clear",
+      subtitle: "No images are processing right now.",
+      showUploadLink: false,
+    };
+  }
+
+  if (likedOnly) {
+    return {
+      title: "No failed liked images",
+      subtitle: "None of your liked images have failed recently.",
+      showUploadLink: false,
+    };
+  }
+
+  return {
+    title: "No failed images",
+    subtitle: "Nothing failed recently.",
+    showUploadLink: false,
+  };
+}
+
 export default function GalleryPage() {
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<
-    "all" | "indexed" | "processing" | "failed"
-  >("all");
+  const [filter, setFilter] = useState<GalleryStatusFilter>("all");
   const [likedOnly, setLikedOnly] = useState(false);
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -191,6 +263,13 @@ export default function GalleryPage() {
     setDeleteTarget(null);
   }, []);
 
+  const emptyGalleryCopy = useMemo(() => {
+    if (!data || data.items.length > 0) {
+      return null;
+    }
+    return getGalleryEmptyState(filter, likedOnly);
+  }, [data, filter, likedOnly]);
+
   return (
     <div className="page-shell">
       <div className="container-shell py-10 md:py-14">
@@ -253,16 +332,22 @@ export default function GalleryPage() {
           </div>
         )}
 
-        {data && data.items.length === 0 && (
+        {emptyGalleryCopy && (
           <div className="frost-panel mx-auto max-w-md rounded-3xl px-8 py-16 text-center">
             <ImageOff className="mx-auto mb-4 h-12 w-12 text-[#5f6568]" />
-            <p className="mb-2 text-[#f0f0f0]">No images found</p>
-            <Link
-              href="/upload"
-              className="text-sm text-[#3b9eff] hover:underline"
-            >
-              Upload your first images
-            </Link>
+            <p className="mb-2 text-[#f0f0f0]">{emptyGalleryCopy.title}</p>
+            {emptyGalleryCopy.showUploadLink ? (
+              <Link
+                href="/upload"
+                className="text-sm text-[#3b9eff] hover:underline"
+              >
+                Upload your first images
+              </Link>
+            ) : emptyGalleryCopy.subtitle ? (
+              <p className="text-sm leading-6 text-[#a1a4a5]">
+                {emptyGalleryCopy.subtitle}
+              </p>
+            ) : null}
           </div>
         )}
 
