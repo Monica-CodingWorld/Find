@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -33,12 +33,30 @@ import {
 } from "@/lib/api";
 import { resolveMediaUrl } from "@/lib/media";
 
+type GalleryFilter = "all" | "indexed" | "processing" | "failed";
+
+const getFilterFromStatusParam = (status: string | null): GalleryFilter => {
+  if (status === "completed" || status === "indexed") {
+    return "indexed";
+  }
+
+  if (status === "processing" || status === "failed") {
+    return status;
+  }
+
+  return "all";
+};
+
+const getStatusParamFromFilter = (filter: GalleryFilter): string | null => {
+  if (filter === "all") {
+    return null;
+  }
+
+  return filter === "indexed" ? "completed" : filter;
+};
+
 function GalleryPageContent() {
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<
-    "all" | "indexed" | "processing" | "failed"
-  >("all");
-  const [likedOnly, setLikedOnly] = useState(false);
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
@@ -51,7 +69,11 @@ function GalleryPageContent() {
   const limit = 24;
 
   const queryClient = useQueryClient();
+  const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const filter = getFilterFromStatusParam(searchParams.get("status"));
+  const likedOnly = searchParams.get("liked") === "true";
   const galleryQueryKey = useMemo(
     () => ["gallery", page, filter, likedOnly] as const,
     [page, filter, likedOnly],
@@ -77,6 +99,38 @@ function GalleryPageContent() {
         : false;
     },
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, likedOnly]);
+
+  const updateGalleryParams = useCallback(
+    (nextState: { filter?: GalleryFilter; likedOnly?: boolean }) => {
+      const nextFilter = nextState.filter ?? filter;
+      const nextLikedOnly = nextState.likedOnly ?? likedOnly;
+      const nextParams = new URLSearchParams(searchParams.toString());
+      const statusParam = getStatusParamFromFilter(nextFilter);
+
+      if (statusParam) {
+        nextParams.set("status", statusParam);
+      } else {
+        nextParams.delete("status");
+      }
+
+      if (nextLikedOnly) {
+        nextParams.set("liked", "true");
+      } else {
+        nextParams.delete("liked");
+      }
+
+      const queryString = nextParams.toString();
+      router.push(queryString ? `${pathname}?${queryString}` : pathname, {
+        scroll: false,
+      });
+    },
+    [filter, likedOnly, pathname, router, searchParams],
+  );
+
   useEffect(() => {
     if (hasOpenedFromQuery) {
       return;
@@ -251,11 +305,29 @@ function GalleryPageContent() {
   }, []);
 
   const filters = [
-    { label: "All", value: "all" as const },
-    { label: "Indexed", value: "indexed" as const },
-    { label: "Processing", value: "processing" as const },
-    { label: "Failed", value: "failed" as const },
-  ];
+    { label: "All", value: "all" },
+    { label: "Indexed", value: "indexed" },
+    { label: "Processing", value: "processing" },
+    { label: "Failed", value: "failed" },
+  ] satisfies Array<{ label: string; value: GalleryFilter }>;
+
+  const handleFilterChange = useCallback(
+    (value: GalleryFilter) => {
+      setPage(1);
+      updateGalleryParams({ filter: value });
+    },
+    [updateGalleryParams],
+  );
+
+  const handleLikedOnlyChange = useCallback(() => {
+    setPage(1);
+    updateGalleryParams({ likedOnly: !likedOnly });
+  }, [likedOnly, updateGalleryParams]);
+
+  const handleClearLikedOnly = useCallback(() => {
+    setPage(1);
+    updateGalleryParams({ likedOnly: false });
+  }, [updateGalleryParams]);
 
   const handleToggleLike = useCallback(
     (mediaId: number) => {
@@ -301,10 +373,7 @@ function GalleryPageContent() {
               <button
                 type="button"
                 key={value}
-                onClick={() => {
-                  setFilter(value);
-                  setPage(1);
-                }}
+                onClick={() => handleFilterChange(value)}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   filter === value
                     ? "bg-white text-black"
@@ -318,10 +387,7 @@ function GalleryPageContent() {
 
           <button
             type="button"
-            onClick={() => {
-              setLikedOnly((previous) => !previous);
-              setPage(1);
-            }}
+            onClick={handleLikedOnlyChange}
             className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium transition-colors ${
               likedOnly
                 ? "border border-[var(--red-soft)] bg-[var(--red-soft)] text-[#ff9bab]"
@@ -357,7 +423,7 @@ function GalleryPageContent() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => setLikedOnly(false)}
+                    onClick={handleClearLikedOnly}
                     className="text-sm text-[#3b9eff] hover:underline"
                   >
                     View all images
