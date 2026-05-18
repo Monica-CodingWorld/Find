@@ -134,6 +134,8 @@ export default function ClustersPage() {
   const activeJobStatus = clusterJobQuery.data?.status;
   const isJobActive =
     activeJobStatus === "queued" || activeJobStatus === "started";
+  const isClusterActionBusy =
+    clusterMutation.isPending || clusterJobQuery.isFetching || isJobActive;
   const filteredMembers =
     selectedClusterQuery.data?.members.filter((member) =>
       member.filename.toLowerCase().includes(filterText.toLowerCase()),
@@ -169,15 +171,15 @@ export default function ClustersPage() {
             <button
               type="button"
               onClick={() => clusterMutation.mutate()}
-              disabled={clusterMutation.isPending || clusterJobQuery.isFetching}
+              disabled={isClusterActionBusy}
               className="white-pill px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {clusterMutation.isPending || clusterJobQuery.isFetching ? (
+              {isClusterActionBusy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Play className="h-4 w-4" />
               )}
-              Re-cluster
+              {isClusterActionBusy ? "Clustering..." : "Re-cluster"}
             </button>
           </div>
         </div>
@@ -222,11 +224,15 @@ export default function ClustersPage() {
             <button
               type="button"
               onClick={() => clusterMutation.mutate()}
-              disabled={clusterMutation.isPending}
+              disabled={isClusterActionBusy}
               className="white-pill px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Play className="h-4 w-4" />
-              Run clustering
+              {isClusterActionBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              {isClusterActionBusy ? "Clustering..." : "Run clustering"}
             </button>
           </div>
         )}
