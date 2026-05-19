@@ -110,7 +110,7 @@ When remote mode is enabled, the following data leaves the local device for each
 | OCR (PaddleOCR) | Full image bytes | High — may include personal/sensitive text visible in the image |
 | CLIP embedding (SigLIP) | Full image bytes | High — full image content |
 | EXIF extraction | Nothing — always runs locally | N/A |
-| Clustering (HDBSCAN) | 768-d float vectors only | Medium — no image file, but vectors encode image content (see §5.3) |
+| Clustering (HDBSCAN) | 768-d SigLIP (ViT-B-16) embedding vectors only (no image files) | Medium — no image file, but vectors encode image content (see §5.3) |
 
 **Key implication:** There is no "safe subset" of the current ML pipeline that transmits zero identifiable image data, except clustering. Every inference step requires image bytes. The UI and consent flow must communicate this clearly.
 
@@ -251,7 +251,7 @@ REMOTE_ML_FEATURES=embed,caption,detect,ocr,cluster
 
 `ML_MODE` gains a new allowed value: `remote`. When `ML_MODE=remote` and `REMOTE_ML_URL` is empty, the worker refuses to start and logs:
 
-```
+```text
 FATAL: ML_MODE=remote but REMOTE_ML_URL is not set.
 Set REMOTE_ML_URL to a reachable Find ML server or change ML_MODE to full or mock.
 ```
@@ -297,7 +297,7 @@ Implementation is a separate task. This design notes it as a desirable UX improv
 
 A dedicated "Remote Acceleration" section, separated from core ML settings:
 
-```
+```text
 ┌─ Remote Acceleration ────────────────────────────────────────────────────┐
 │                                                                          │
 │  Enable remote ML processing    [ OFF ]                                  │
@@ -328,7 +328,7 @@ A dedicated "Remote Acceleration" section, separated from core ML settings:
 
 Shown once when the toggle is first turned ON. Not shown again unless settings are reset.
 
-```
+```text
 ┌─ Enable Remote Processing? ──────────────────────────────────────────────┐
 │                                                                          │
 │  Remote processing sends your images to the server you configured.       │
@@ -370,7 +370,7 @@ These indicators must be present in any future mobile client as well.
 
 When the configured URL uses `http://` and the host is not `localhost` or `127.0.0.1`:
 
-```
+```text
 ⚠ Unencrypted connection
   Images will be sent in plaintext over the network.
   Use HTTPS or Tailscale for connections outside your local network.
@@ -410,7 +410,7 @@ Implementation issues will be opened only after this design is reviewed and acce
 
 1. Add `ML_MODE=remote` and `REMOTE_ML_*` config to `config.py` and `.env.example`
 2. Implement EXIF stripping before remote transmission
-3. Implement `/api/ml/analyze`, `/api/ml/embed`, `/api/ml/cluster`, `/api/ml/health` on the server side
+3. Implement `/api/ml/analyze`, `/api/ml/embed`, `/api/ml/cluster`, `/api/ml/health` on the server-side
 4. Route `processors.py` inference through `RemoteMLClient` when `ML_MODE=remote`
 5. Add Remote Acceleration settings UI (toggle, URL, API key, feature checkboxes, test connection)
 6. Add first-enable consent dialog
@@ -430,8 +430,8 @@ Implementation issues will be opened only after this design is reviewed and acce
 - [Tailscale Quickstart](https://tailscale.com/docs/how-to/quickstart)
 - [Cloudflare Tunnel Documentation](https://developers.cloudflare.com/tunnel/)
 - [Cloudflare Tunnel Privacy & Security Tradeoffs](https://www.pieterdev.com/blog/cloudflare-tunnel/)
-- [LeakyCLIP: Extracting Training Data from CLIP (arXiv 2508.00756, Aug 2025)](https://arxiv.org/html/2508.00756v1)
-- [Unlocking Visual Secrets: Inverting Features with Diffusion Priors (arXiv 2412.10448, Dec 2024)](https://arxiv.org/pdf/2412.10448)
+- [LeakyCLIP: Extracting Training Data from CLIP (arXiv 2508.00756, Aug 2025)](https://arxiv.org/abs/2508.00756v1)
+- [Unlocking Visual Secrets: Inverting Features with Diffusion Priors (arXiv 2412.10448, Dec 2024)](https://arxiv.org/abs/2412.10448)
 - [API Token Management Best Practices for Self-Hosted Deployments](https://hoop.dev/blog/api-token-management-best-practices-for-self-hosted-deployments)
 - [REST API Authentication Best Practices — Stack Overflow Blog](https://stackoverflow.blog/2021/10/06/best-practices-for-authentication-and-authorization-for-rest-apis/)
 - [Android Network Service Discovery (mDNS)](https://developer.android.com/develop/connectivity/wifi/use-nsd)
