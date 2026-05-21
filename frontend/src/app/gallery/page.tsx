@@ -140,6 +140,8 @@ const getStatusParamFromFilter = (filter: GalleryFilter): string | null => {
 
 function GalleryPageContent() {
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     filename?: string;
@@ -223,6 +225,10 @@ function GalleryPageContent() {
     },
     [buildGalleryHref, router],
   );
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filterStateKey]);
 
   useEffect(() => {
     if (hasOpenedFromQuery) {
@@ -436,6 +442,14 @@ function GalleryPageContent() {
     [filterStateKey],
   );
 
+  const toggleSelection = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
   const handleToggleLike = useCallback(
     (mediaId: number) => {
       likeMutation.mutate(mediaId);
@@ -502,6 +516,21 @@ function GalleryPageContent() {
           </div>
 
           <button
+          type="button"
+          onClick={() => {
+            setIsMultiSelectMode((prev) => !prev);
+            setSelectedIds(new Set());
+          }}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium transition-colors ${
+            isMultiSelectMode
+            ?"border border-[var(--blue)] bg-[var(--blue)]/20 text-[color:var(--blue)]"
+            :"border border-[var(--frost)] text-[color:var(--silver)] hover:bg-[color:var(--frost-soft)] hover:text-[color:var(--near-white)]"
+            }`}
+            >
+              {isMultiSelectMode ? "Exit Select" : "Select"}
+            </button>
+
+          <button
             type="button"
             aria-pressed={likedOnly}
             onClick={handleLikedOnlyChange}
@@ -561,6 +590,32 @@ function GalleryPageContent() {
           </div>
         )}
 
+        {isMultiSelectMode && (
+          <div className="frost-panel mb-4 flex items-center justify-between rounded-2xl px-4 py-3">
+            <span className="text-sm text-[color:var(--near-white)]">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="frost-button px-3 py-1 text-xs font-medium"
+              >
+                Clear
+              </button>
+              <button
+              type="button"
+              onClick={() => {
+                setIsMultiSelectMode(false);
+                setSelectedIds(new Set());
+              }}
+              className="frost-button px-3 py-1 text-xs font-medium"
+              >
+                Exit
+              </button>
+            </div>
+          </div>
+        )}
         {data && data.items.length > 0 && (
           <>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
@@ -571,14 +626,22 @@ function GalleryPageContent() {
                 return (
                   <article
                     key={item.id}
-                    className="frost-panel card-hover group relative overflow-hidden rounded-2xl"
-                  >
+                    className={`frost-panel card-hover group relative overflow-hidden rounded-2xl transition-all ${
+                      isMultiSelectMode && selectedIds.has(item.id)
+                      ? "ring-2 ring-[var(--blue)]"
+                      : ""
+                    }`}
+                    >
                     <button
                       type="button"
                       className="relative block aspect-square w-full overflow-hidden bg-[color:var(--surface-soft)] text-left focus:outline-none"
                       onClick={() => {
-                        setQuerySelectedItem(null);
-                        setSelectedMediaId(item.id);
+                        if (isMultiSelectMode) {
+                          toggleSelection(item.id);
+                        } else {
+                          setQuerySelectedItem(null);
+                          setSelectedMediaId(item.id);
+                        }
                       }}
                       aria-label={`View ${item.filename}`}
                     >
