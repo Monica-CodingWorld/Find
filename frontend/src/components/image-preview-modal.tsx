@@ -17,6 +17,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  type AnalysisStageName,
+  type AnalysisStageStatus,
   deleteImage,
   getImageDetail,
   type MediaDetail,
@@ -62,6 +64,21 @@ type ImagePreviewModalProps = {
   hasNext?: boolean;
 };
 
+const ANALYSIS_STAGE_ORDER: AnalysisStageName[] = [
+  "object_detection",
+  "captioning",
+  "ocr",
+  "embedding",
+];
+const PROCESSING_DETAIL_REFRESH_INTERVAL_MS = 2000;
+
+function formatAnalysisStageName(stage: AnalysisStageName) {
+  if (stage === "ocr") {
+    return "OCR";
+  }
+  return stage.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function DetailRow({
   label,
   children,
@@ -100,7 +117,13 @@ export function ImagePreviewModal({
     queryFn: () => getImageDetail(media.id),
     enabled: media.id !== null,
     staleTime: MINIO_URL_STALE_TIME_MS,
-    refetchInterval: MINIO_URL_REFRESH_INTERVAL_MS,
+    refetchInterval: (query) => {
+      const currentStatus = query.state.data?.status ?? media.status;
+      if (currentStatus === "pending" || currentStatus === "processing") {
+        return PROCESSING_DETAIL_REFRESH_INTERVAL_MS;
+      }
+      return MINIO_URL_REFRESH_INTERVAL_MS;
+    },
   });
 
   useEffect(() => {
@@ -139,7 +162,9 @@ export function ImagePreviewModal({
   const ocrText = detailData?.metadata?.ocr_text;
 
   const stageStatus = detailData?.metadata?.stage_status;
-  const displayStageStatus = useMemo(() => {
+  const displayStageStatus = useMemo<Partial<
+    Record<AnalysisStageName, AnalysisStageStatus>
+  > | null>(() => {
     if (stageStatus) {
       return stageStatus;
     }
@@ -153,6 +178,9 @@ export function ImagePreviewModal({
     }
     return null;
   }, [stageStatus, status]);
+  const captionStage = displayStageStatus?.captioning;
+  const objectDetectionStage = displayStageStatus?.object_detection;
+  const ocrStage = displayStageStatus?.ocr;
 
   const likeMutation = useMutation({
     mutationFn: (mediaId: number) => toggleLike(mediaId),
@@ -371,10 +399,9 @@ export function ImagePreviewModal({
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--blue)]" />
                     Generating caption...
                   </p>
-                ) : stageStatus?.captioning?.status === "failed" ? (
+                ) : captionStage?.status === "failed" ? (
                   <p className="text-sm text-[#ff9bab] font-medium leading-6">
-                    Captioning failed:{" "}
-                    {stageStatus.captioning.error || "Unknown error"}
+                    Captioning failed: {captionStage.error || "Unknown error"}
                   </p>
                 ) : caption ? (
                   <p className="text-sm leading-6 text-[color:var(--near-white)]">
@@ -403,14 +430,14 @@ export function ImagePreviewModal({
                       Detecting objects...
                     </p>
                   </div>
-                ) : stageStatus?.object_detection?.status === "failed" ? (
+                ) : objectDetectionStage?.status === "failed" ? (
                   <div>
                     <p className="mb-2 text-xs font-medium uppercase text-[color:var(--muted)]">
                       Detected objects
                     </p>
                     <p className="text-sm text-[#ff9bab] font-medium">
                       Object detection failed:{" "}
-                      {stageStatus.object_detection.error || "Unknown error"}
+                      {objectDetectionStage.error || "Unknown error"}
                     </p>
                   </div>
                 ) : objects.length > 0 ? (
@@ -455,13 +482,13 @@ export function ImagePreviewModal({
                       Running OCR...
                     </p>
                   </div>
-                ) : stageStatus?.ocr?.status === "failed" ? (
+                ) : ocrStage?.status === "failed" ? (
                   <div className="border-t border-[var(--frost-soft)] pt-3">
                     <p className="mb-2 text-xs font-medium uppercase text-[color:var(--muted)]">
                       OCR text
                     </p>
                     <p className="text-sm text-[#ff9bab] font-medium">
-                      OCR failed: {stageStatus.ocr.error || "Unknown error"}
+                      OCR failed: {ocrStage.error || "Unknown error"}
                     </p>
                   </div>
                 ) : ocrText ? (
@@ -492,10 +519,14 @@ export function ImagePreviewModal({
                   Analysis Stages
                 </h3>
                 <div className="rounded-2xl border border-[var(--frost)] bg-[color:var(--surface-soft)] p-4 space-y-3">
-                  {Object.entries(displayStageStatus).map(([stage, info]) => {
-                    const prettyName = stage
-                      .replace(/_/g, " ")
-                      .replace(/\b\w/g, (c) => c.toUpperCase());
+                  {ANALYSIS_STAGE_ORDER.filter(
+                    (stage) => displayStageStatus[stage],
+                  ).map((stage) => {
+                    const info = displayStageStatus[stage];
+                    if (!info) {
+                      return null;
+                    }
+                    const prettyName = formatAnalysisStageName(stage);
 
                     const statusClass = (() => {
                       if (info.status === "success") {

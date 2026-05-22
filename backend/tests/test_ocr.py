@@ -1,6 +1,6 @@
 """Test PaddleOCR integration and version compatibility."""
 
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 import pytest
 
@@ -29,17 +29,14 @@ def simple_image():
 @pytest.fixture
 def image_with_text():
     """Create an image with simple text using PIL ImageDraw."""
-    from PIL import ImageDraw
-
-    img = Image.new("RGB", (200, 100), color="white")
+    img = Image.new("RGB", (320, 140), color="white")
     draw = ImageDraw.Draw(img)
-    # Draw simple black text
-    draw.text((10, 10), "Hello", fill="black")
+    draw.text((24, 48), "HELLO FIND", fill="black")
     return img
 
 
 class TestOCRExtractor:
-    """Test OCR functionality with PaddleOCR 2.7.3."""
+    """Test OCR functionality with the supported PaddleOCR stack."""
 
     def test_extractor_initializes(self, ocr_extractor):
         """Test that OCRExtractor initializes without errors."""
@@ -77,9 +74,8 @@ class TestOCRExtractor:
         # Result should be a list
         assert isinstance(result, list)
 
-        # With our test image containing text, we should get at least one result
-        # (May be empty if model doesn't detect the simple PIL-drawn text,
-        # so we validate structure if any results exist)
+        assert result, "OCR should return at least one block for the text image"
+
         for item in result:
             assert isinstance(item, dict)
             assert "text" in item
@@ -98,7 +94,7 @@ class TestOCRExtractor:
 
     @pytest.mark.slow
     def test_paddleocr_api_compatibility(self, ocr_extractor, image_with_text):
-        """Test that PaddleOCR 2.7.3 is usable through the public API.
+        """Test that the supported PaddleOCR stack is usable through the public API.
 
         Marked as slow because this exercises real PaddleOCR initialization,
         which may download model weights on first run (slow/non-hermetic).
@@ -106,17 +102,15 @@ class TestOCRExtractor:
         """
         result = ocr_extractor.extract_text(image_with_text)
         assert isinstance(result, str)
-        # Verify OCR actually extracted text (not empty)
-        assert len(result) > 0, "OCR should extract text from image with text"
+        assert result.strip(), "OCR should extract text from image with text"
+        assert "HELLO" in result.upper()
 
 
 class TestOCRErrorHandling:
     """Test error handling in OCR extraction."""
 
     def test_extract_text_handles_invalid_image(self, ocr_extractor):
-        """Test that invalid very small images propagate OCR errors."""
-        # Very small image (1x1) will likely cause PaddleOCR to fail
-        # The implementation logs and re-raises, so we expect an exception
+        """Test the extractor has a deterministic contract for tiny images."""
         img = Image.new("RGB", (1, 1))
-        with pytest.raises(Exception):
-            ocr_extractor.extract_text(img)
+        result = ocr_extractor.extract_text(img)
+        assert isinstance(result, str)

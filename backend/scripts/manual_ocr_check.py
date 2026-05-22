@@ -2,7 +2,7 @@
 """
 Manual OCR verification script - run with: python scripts/manual_ocr_check.py
 
-Tests PaddleOCR 2.7.3 API compatibility and basic functionality.
+Tests PaddleOCR 3.x API compatibility and basic functionality.
 This is a standalone utility, not a pytest test.
 """
 
@@ -17,11 +17,8 @@ def check_version():
 
     version = paddleocr.__version__
     print(f"✓ PaddleOCR version: {version}")
-    # Must be exactly 2.7.3 as pinned in pyproject.toml
-    if version != "2.7.3":
-        raise AssertionError(
-            f"Expected PaddleOCR 2.7.3 (pinned version), got {version}"
-        )
+    if not version.startswith("3."):
+        raise AssertionError(f"Expected PaddleOCR 3.x, got {version}")
 
 
 def check_ocr_extractor(OCRExtractor, Image, np):
@@ -92,7 +89,7 @@ if __name__ == "__main__":
     from find_api.ml.ocr import OCRExtractor
 
     print("=" * 50)
-    print("PaddleOCR 2.7.3 Compatibility Test")
+    print("PaddleOCR 3.x Compatibility Test")
     print("=" * 50)
 
     try:
@@ -101,7 +98,7 @@ if __name__ == "__main__":
 
         if success:
             print("\n" + "=" * 50)
-            print("✓ All tests passed! PaddleOCR 2.7.3 is working")
+            print("✓ All tests passed! PaddleOCR 3.x is working")
             print("=" * 50)
             sys.exit(0)
         else:

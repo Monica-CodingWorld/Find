@@ -69,6 +69,7 @@ def analyze_image(media_id: int):
 
     db = SessionLocal()
     media = None
+    metadata = None
 
     try:
         set_stage(job, "loading image")
@@ -168,13 +169,14 @@ def analyze_image(media_id: int):
         logger.error(f"Failed to process media {media_id}: {e}")
         db.rollback()
 
+        safe_error = sanitize_error(e)
         set_stage(job, "failed")
-        set_error(job, sanitize_error(e))
+        set_error(job, safe_error)
 
         if media:
             media.status = "failed"
-            media.error_message = sanitize_error(e)
-            if "metadata" in locals() and metadata:
+            media.error_message = safe_error
+            if metadata:
                 media.metadata_json = metadata
             db.commit()
 

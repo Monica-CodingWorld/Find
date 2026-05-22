@@ -48,7 +48,7 @@ def extract_image_metadata(
                 "object_detection": {"status": "success", "error": None},
                 "captioning": {"status": "success", "error": None},
                 "ocr": {"status": "success", "error": None},
-                "embedding": {"status": "success", "error": None},
+                "embedding": {"status": "pending", "error": None},
             },
         }
 
@@ -77,7 +77,7 @@ def extract_image_metadata(
         }
         logger.info(f"Detected {len(objects)} objects")
     except Exception as e:
-        logger.error(f"Object detection failed: {e}")
+        logger.exception("Object detection failed")
         metadata["objects"] = []
         metadata["stage_status"]["object_detection"] = {
             "status": "failed",
@@ -97,7 +97,7 @@ def extract_image_metadata(
         metadata["stage_status"]["captioning"] = {"status": "success", "error": None}
         logger.info(f"Caption: {caption}")
     except Exception as e:
-        logger.error(f"Captioning failed: {e}")
+        logger.exception("Captioning failed")
         metadata["caption"] = ""
         metadata["stage_status"]["captioning"] = {
             "status": "failed",
@@ -119,7 +119,7 @@ def extract_image_metadata(
         metadata["stage_status"]["ocr"] = {"status": "success", "error": None}
         logger.info(f"Extracted {len(ocr_text)} characters")
     except Exception as e:
-        logger.error(f"OCR failed: {e}")
+        logger.exception("OCR failed")
         metadata["ocr_text"] = ""
         metadata["text_blocks"] = []
         metadata["stage_status"]["ocr"] = {
@@ -171,8 +171,8 @@ def generate_hybrid_embedding(
         logger.info("Hybrid embedding generated")
         return hybrid_vector.tolist()
 
-    except Exception as e:
-        logger.error(f"CLIP embedding failed: {e}")
+    except Exception:
+        logger.exception("CLIP embedding failed")
         raise
 
 
