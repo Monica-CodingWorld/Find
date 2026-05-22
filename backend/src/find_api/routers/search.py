@@ -50,7 +50,8 @@ def search_images(
     # Perform vector similarity search
     # Using cosine distance (1 - cosine similarity)
     # Added threshold to filter irrelevant results
-    query_sql = text("""
+    query_sql = text(
+        """
         WITH ranked_results AS (
             SELECT 
                 id,
@@ -76,7 +77,8 @@ def search_images(
         WHERE similarity > :threshold
         ORDER BY similarity DESC
         LIMIT :limit
-    """)
+    """
+    )
 
     # SigLIP similarities can be lower than OpenAI CLIP.
     # Lowering threshold to ensure results are returned.

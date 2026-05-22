@@ -31,7 +31,9 @@ def migrate_db():
                 )
             )
             conn.execute(
-                text("ALTER TABLE media ADD COLUMN IF NOT EXISTS thumbnail_size INTEGER;")
+                text(
+                    "ALTER TABLE media ADD COLUMN IF NOT EXISTS thumbnail_size INTEGER;"
+                )
             )
             conn.execute(
                 text(
