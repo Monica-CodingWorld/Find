@@ -328,10 +328,10 @@ export default function ClustersPage() {
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                     {cluster.samples.map((sample) => {
                       const imageSrc = resolveMediaUrl(
-                        sample.url,
+                        sample.thumbnail_url ?? sample.url,
                         null,
                         sample.id,
-                        true,
+                        !sample.thumbnail_url,
                       );
 
                       return (
@@ -446,10 +446,10 @@ export default function ClustersPage() {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {filteredMembers.map((member) => {
                       const imageSrc = resolveMediaUrl(
-                        member.url,
+                        member.thumbnail_url ?? member.url,
                         null,
                         member.id,
-                        true,
+                        !member.thumbnail_url,
                       );
 
                       return (
