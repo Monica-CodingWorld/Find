@@ -1,13 +1,18 @@
 # Repository Guidelines For Agents
 
-This is the single committed instruction file for AI coding agents working on Find. Keep shared agent guidance here instead of adding duplicate tool-specific files such as `AGENT.md`, `CODEX.md`, `CLAUDE.md`, `.cursorrules`, `.windsurfrules`, or `.github/copilot-instructions.md` unless a maintainer explicitly asks for one.
+This is the main shared instruction file for AI coding agents working on Find. Tool-specific files should stay short and point back here so the rules do not drift.
 
 ## Agent Compatibility And Placement
 
-- Keep this file at the repository root as `AGENTS.md`.
-- Codex, Cursor, Windsurf, opencode, GitHub Copilot agent/CLI, and other AGENTS.md-compatible tools can use this root file as project-level guidance.
-- Claude Code commonly uses `CLAUDE.md`; for this repository, ask Claude to read or attach `AGENTS.md` rather than creating a separate committed `CLAUDE.md`.
-- Cursor and Windsurf also support their own rule directories, but this repo should use root `AGENTS.md` for the shared baseline to avoid conflicting instructions.
+- `AGENTS.md` is the main shared source for Codex, opencode, Cursor, Windsurf, Copilot-style agents, and other tools that support this convention.
+- `CODEX.md` is a Codex compatibility pointer back to this file.
+- `CLAUDE.md` is a Claude Code entry point and imports this file.
+- `.github/copilot-instructions.md` is the GitHub Copilot repository instruction entry point and points back here.
+- `.cursor/rules/find-agent-guidelines.mdc` is the Cursor project rule entry point and points back here.
+- `.windsurfrules` is the Windsurf entry point and points back here.
+- `.agents.md` is a lowercase compatibility pointer for tools or contributors that look for that spelling.
+- `docs/AGENT_SECURITY.md` contains the detailed AI-agent security policy for this project.
+- Keep tool-specific files as thin pointers. Put shared behavior, project structure, commands, and review expectations in this file.
 - If a tool supports extra local or user-level rules, keep those personal files outside the repo. Do not commit personal agent memories or machine-specific rules.
 - If future scoped rules are needed, prefer additional `AGENTS.md` files inside a specific directory only when the guidance truly applies only to that directory.
 
@@ -17,6 +22,7 @@ This is the single committed instruction file for AI coding agents working on Fi
 2. Read `CONTRIBUTING.md` for branch, PR, and review process.
 3. Check the linked issue before editing. If the PR has no linked issue, keep the change blocked until the maintainer confirms scope.
 4. Keep the branch focused on one issue. Do not bundle opportunistic refactors, unrelated docs, formatting churn, or cleanup.
+5. Read `docs/AGENT_SECURITY.md` before touching upload, storage, ML, face/person data, feedback, secrets, Docker, CI, or dependency files.
 
 ## Project Structure & Module Organization
 
@@ -99,26 +105,7 @@ Pull requests should include a clear description, linked issue when relevant, te
 
 Do not commit `.env`, MinIO data, database files, downloaded model weights, or secrets. Keep `EMBEDDING_DIM` aligned with the configured CLIP/SigLIP model and pgvector columns.
 
-Find is local-first and privacy-focused. Do not add cloud calls, hosted model APIs, telemetry, analytics, or external uploads for user images, captions, OCR text, embeddings, faces, feedback, or storage data unless the linked issue explicitly asks for that architecture.
-
-Treat these as sensitive data:
-
-- uploaded images and thumbnails
-- object storage contents and keys
-- captions, OCR text, EXIF metadata, embeddings, and face/person data
-- user feedback and personalization signals
-- database dumps, logs, and `.env` values
-
-Security rules for agents:
-
-- Never hardcode credentials, public buckets, API keys, or local absolute paths.
-- Keep real secrets out of examples; update `.env.example` only with safe placeholder values.
-- Do not print raw secrets, signed URLs, tokens, or private file paths in logs or error messages.
-- Use existing sanitized error helpers for user-facing backend errors.
-- Do not weaken GitHub Actions, upload validation, ZIP safety checks, dependency policy, or secret scanning to make a PR pass.
-- Do not add new dependencies for small tasks unless the repo already uses that library or the issue justifies it.
-- For destructive actions such as delete, reprocess, recluster, migration, or storage cleanup, preserve existing data unless a verified replacement is ready.
-- Keep hidden/vault, face recognition, and personalization work local-only by default.
+Follow the detailed agent security policy in `docs/AGENT_SECURITY.md`. In short: Find is local-first and privacy-focused. Do not add cloud calls, hosted model APIs, telemetry, analytics, or external uploads for user images, captions, OCR text, embeddings, faces, feedback, or storage data unless the linked issue explicitly asks for that architecture.
 
 ## Agent Review Checklist
 
