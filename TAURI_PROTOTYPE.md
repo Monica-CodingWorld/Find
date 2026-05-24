@@ -23,20 +23,14 @@ Relates to issue #42 and discussion #37.
 ### Development (hot reload via Next.js dev server)
 
 ```bash
-# Terminal 1 - start the Next.js dev server
 cd frontend
 pnpm install      # first time only
 pnpm approve-builds   # if prompted about sharp, approve it, then re-run pnpm install
-pnpm dev          # runs on http://localhost:3000
-
-# Terminal 2 - start Tauri (points devUrl at localhost:3000)
-cd frontend
-pnpm install      # installs @tauri-apps/cli
-pnpm desktop:dev  # opens the desktop window
+pnpm desktop:dev  # starts Next.js and opens the desktop window
 ```
 
-Tauri's `devUrl` in `src-tauri/tauri.conf.json` is set to `http://localhost:3000`,
-so the window proxies the live Next.js dev server. No static export is involved here.
+Tauri's `beforeDevCommand` starts `pnpm dev`, and `devUrl` points the window at
+`http://localhost:3000`. No static export is involved in development mode.
 
 ### Production build (static export → bundled app)
 
@@ -45,8 +39,8 @@ cd frontend
 pnpm install
 pnpm desktop:build
 # Equivalent to:
-#   NEXT_OUTPUT=static next build   → writes frontend/out/
-#   tauri build                     → reads frontend/out/, produces installer in src-tauri/target/release/bundle/
+#   pnpm build:static   -> writes frontend/out/
+#   tauri build         -> reads frontend/out/, produces installer in src-tauri/target/release/bundle/
 ```
 
 The installer is written to `frontend/src-tauri/target/release/bundle/`.
@@ -58,7 +52,7 @@ The installer is written to `frontend/src-tauri/target/release/bundle/`.
 ```text
 frontend/
 ├── next.config.js          # NEXT_OUTPUT=static enables output:"export" + unoptimized images
-├── package.json            # desktop:dev / desktop:build scripts; @tauri-apps/cli devDep
+├── package.json            # build:static / desktop:* scripts; @tauri-apps/cli devDep
 └── src-tauri/
     ├── tauri.conf.json     # app metadata, window size, frontendDist, devUrl
     ├── capabilities/
@@ -78,8 +72,8 @@ prototype.
 
 ## What works with static export
 
-- All pages (`/`, `/upload`, `/gallery`, `/search`, `/clusters`) — they are pure
-  client components with no server-side dependencies.
+- All pages (`/`, `/upload`, `/gallery`, `/search`, `/clusters`, `/people`) —
+  they are pure client components with no server-side dependencies.
 - Client-side data fetching via axios to the external FastAPI backend.
 - Tailwind styles, React Query, Sonner toasts.
 - Navigation and routing (static export with `trailingSlash: true` maps routes to

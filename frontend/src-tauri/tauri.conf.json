@@ -1,8 +1,10 @@
 {
   "productName": "Find",
   "version": "0.0.1",
-  "identifier": "com.find.app",
+  "identifier": "com.abhashchakraborty.find",
   "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build:static",
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000"
   },

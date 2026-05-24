@@ -11,8 +11,9 @@
     "check": "biome check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "build:static": "cross-env NEXT_OUTPUT=static next build",
     "desktop:dev": "tauri dev",
-    "desktop:build": "cross-env NEXT_OUTPUT=static next build && tauri build"
+    "desktop:build": "tauri build"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.7",
