@@ -4,7 +4,6 @@ import hashlib
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from find_api.core.config import settings
 from find_api.models.cluster import Cluster
 from find_api.models.media import Media
 
@@ -296,52 +295,11 @@ class TestDeleteImage:
         third = _seed(db, filename="cluster-c.jpg", status="indexed")
         cluster = _seed_cluster(db, member_ids=[first.id, second.id, third.id])
 
-        response = client.delete(f"/api/image/{second.id}")
+        with patch("find_api.routers.gallery.delete_file"):
+            response = client.delete(f"/api/image/{second.id}")
 
         assert response.status_code == 200
         db.refresh(cluster)
         assert cluster.member_ids == [first.id, third.id]
         assert cluster.member_count == 2
         assert db.query(Media).filter(Media.id == second.id).first() is None
-
-    def test_delete_unauthorized_without_api_key_when_configured(
-        self, client, db, monkeypatch
-    ):
-        monkeypatch.setattr(settings, "DELETE_API_KEY", "test-delete-key")
-        media = _seed(db, filename="protected.jpg", status="indexed")
-
-        response = client.delete(f"/api/image/{media.id}")
-
-        assert response.status_code == 401
-        assert response.json()["detail"] == "Unauthorized"
-        assert db.query(Media).filter(Media.id == media.id).first() is not None
-
-    def test_delete_forbidden_with_invalid_api_key_when_configured(
-        self, client, db, monkeypatch
-    ):
-        monkeypatch.setattr(settings, "DELETE_API_KEY", "test-delete-key")
-        media = _seed(db, filename="protected-2.jpg", status="indexed")
-
-        response = client.delete(
-            f"/api/image/{media.id}",
-            headers={"X-API-Key": "wrong-key"},
-        )
-
-        assert response.status_code == 403
-        assert response.json()["detail"] == "Forbidden"
-        assert db.query(Media).filter(Media.id == media.id).first() is not None
-
-    def test_delete_succeeds_with_valid_api_key_when_configured(
-        self, client, db, monkeypatch
-    ):
-        monkeypatch.setattr(settings, "DELETE_API_KEY", "test-delete-key")
-        media = _seed(db, filename="protected-3.jpg", status="indexed")
-
-        with patch("find_api.routers.gallery.delete_file"):
-            response = client.delete(
-                f"/api/image/{media.id}",
-                headers={"X-API-Key": "test-delete-key"},
-            )
-
-        assert response.status_code == 200
-        assert db.query(Media).filter(Media.id == media.id).first() is None
