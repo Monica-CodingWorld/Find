@@ -364,15 +364,25 @@ def process_feedback_ranking():
             .all()
         )
 
-        for media in media_items:
-            avg_rating = (
-                db.query(func.avg(GeneralFeedback.rating))
-                .filter(
-                    GeneralFeedback.media_id == media.id,
-                    GeneralFeedback.feedback_type == "search_rating",
-                )
-                .scalar()
+        feedback_scores = (
+            db.query(
+                GeneralFeedback.media_id,
+                func.avg(GeneralFeedback.rating).label("avg_rating"),
             )
+            .filter(
+                GeneralFeedback.feedback_type == "search_rating",
+            )
+            .group_by(GeneralFeedback.media_id)
+            .all()
+        )
+
+        score_map = {
+            media_id: avg_rating
+            for media_id, avg_rating in feedback_scores
+        }
+
+        for media in media_items:
+            avg_rating = score_map.get(media.id)
 
             boost = 0.0
 
