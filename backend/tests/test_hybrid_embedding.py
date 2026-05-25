@@ -318,6 +318,6 @@ class TestBiasRemoval:
                         f"caption={caption!r}, objects={objects}"
                     )
                 else:
-                    assert "" not in args, (
-                        f"Empty string found in embed_text list call: {args}"
-                    )
+                    assert (
+                        "" not in args
+                    ), f"Empty string found in embed_text list call: {args}"
