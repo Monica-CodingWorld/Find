@@ -14,7 +14,7 @@ import zipfile
 
 from find_api.core.database import get_db
 from find_api.core.queue import get_task_queue
-from find_api.core.storage import upload_file
+from find_api.core.storage import upload_file, upload_thumbnail
 from find_api.core.config import settings
 from find_api.models.media import Media
 from find_api.workers.jobs import analyze_image
@@ -48,10 +48,14 @@ async def upload_images(
             results.append(result)
         except HTTPException:
             raise
-        except Exception as e:
-            logger.error(f"Failed to upload {file.filename}: {e}")
+        except Exception:
+            logger.exception("Failed to upload %s", file.filename)
             results.append(
-                {"filename": file.filename, "status": "failed", "error": str(e)}
+                {
+                    "filename": file.filename,
+                    "status": "failed",
+                    "error": "Upload failed. Please retry.",
+                }
             )
 
     return {"results": results, "total": len(results)}
@@ -173,15 +177,13 @@ async def upload_bulk_images(
                             "error": detail,
                         }
                     )
-                except Exception as exc:
-                    logger.error(
-                        f"Failed to process {filename} from bulk upload: {exc}"
-                    )
+                except Exception:
+                    logger.exception("Failed to process %s from bulk upload", filename)
                     results.append(
                         {
                             "filename": filename,
                             "status": "failed",
-                            "error": str(exc),
+                            "error": "Upload failed. Please retry.",
                         }
                     )
 
@@ -240,6 +242,7 @@ def _ingest_image(
     )
 
     upload_file(file_data, minio_key, detected_type)
+    thumbnail_metadata = upload_thumbnail(file_data, file_hash)
 
     media = Media(
         file_hash=file_hash,
@@ -248,6 +251,7 @@ def _ingest_image(
         content_type=detected_type,
         file_size=file_size,
         status="pending",
+        **(thumbnail_metadata or {}),
     )
 
     db.add(media)
