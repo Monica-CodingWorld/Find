@@ -160,6 +160,11 @@ def get_image_detail(media_id: int, db: Session = Depends(get_db)):
         "created_at": media.created_at.isoformat() if media.created_at else None,
         "processed_at": media.processed_at.isoformat() if media.processed_at else None,
         "cluster_id": media.cluster_id,
+        "cluster_label": (
+            db.query(Cluster.label).filter(Cluster.id == media.cluster_id).scalar()
+        )
+        if media.cluster_id is not None
+        else None,
         "thumbnail_key": media.thumbnail_key,
         "thumbnail_content_type": media.thumbnail_content_type,
         "thumbnail_size": media.thumbnail_size,

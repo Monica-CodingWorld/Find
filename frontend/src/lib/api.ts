@@ -35,6 +35,7 @@ export interface MediaItem {
   height?: number | null;
   file_size?: number | null;
   cluster_id?: number | null;
+  cluster_label?: string | null;
   url?: string | null;
   thumbnail_url?: string | null;
   caption?: string;
