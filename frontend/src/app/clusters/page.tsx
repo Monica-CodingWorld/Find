@@ -390,7 +390,7 @@ export default function ClustersPage() {
                     <div className="min-w-0">
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         <h2 className="text-lg font-medium text-[color:var(--near-white)]">
-                          Cluster {cluster.id}
+                          {cluster.label?.trim() || `Cluster ${cluster.id}`}
                         </h2>
                         <span className="accent-badge status-default">
                           {cluster.member_count}{" "}
@@ -398,8 +398,8 @@ export default function ClustersPage() {
                         </span>
                       </div>
                       {cluster.label && (
-                        <p className="text-sm text-[color:var(--silver)]">
-                          {cluster.label}
+                        <p className="text-xs uppercase text-[color:var(--muted)]">
+                          Cluster {cluster.id}
                         </p>
                       )}
                       {cluster.description && (
