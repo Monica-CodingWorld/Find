@@ -397,7 +397,7 @@ export default function ClustersPage() {
                           {cluster.member_count === 1 ? "image" : "images"}
                         </span>
                       </div>
-                      {cluster.label && (
+                      {cluster.label?.trim() && (
                         <p className="text-xs uppercase text-[color:var(--muted)]">
                           Cluster {cluster.id}
                         </p>
@@ -474,6 +474,7 @@ export default function ClustersPage() {
               onClick={() => {
                 setSelectedClusterId(null);
                 setFilterText("");
+                setClusterLabelDraft(selectedClusterQuery.data?.label ?? "");
               }}
               className="icon-button absolute right-4 top-4 z-20 bg-[color:var(--overlay)] text-white backdrop-blur-md"
               aria-label="Close cluster detail"
