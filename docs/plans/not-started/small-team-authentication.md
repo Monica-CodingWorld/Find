@@ -38,6 +38,33 @@ Join an Instance (user flows)
 - The backend creates a join request which the admin reviews and approves or denies (or if invite is pre-approved, account is created automatically).
 - Once approved, the user can sign in and interact with the shared instance.
 
+## Instance Tab UI State Checklist
+
+### General states
+
+- Single-user local-first default state
+- Empty state when no shared instance is configured
+- Loading state while authentication or instance data is loading
+- Success state showing connected instance details and active users
+- Unauthorized state for invalid permissions or expired sessions
+- Error state for failed requests or unavailable services
+
+### Admin setup flow
+
+- Admin can configure or enable shared-instance setup
+- Admin can review pending join requests
+- Admin can approve or reject requests
+- Active users list is visible to admins
+
+### Joining-user flow
+
+- User can submit a join request
+- Pending approval state is clearly displayed
+- Successful join confirmation is visible
+- Unauthorized or invalid invite states are handled gracefully
+
+> Single-user local installs must not require shared-instance setup. Sharing remains opt-in and local-first by default.
+
 ## Authentication & Accounts
 
 Minimal user model (example fields):
