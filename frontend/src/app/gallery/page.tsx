@@ -20,7 +20,9 @@ import { StatusIndicator } from "@/components/status-indicator";
 import {
   deleteImage,
   type GalleryResponse,
+  type GalleryCounts,
   getGallery,
+  getGalleryCounts,
   type MediaItem,
   toggleLike,
 } from "@/lib/api";
@@ -46,6 +48,11 @@ export default function GalleryPage() {
     () => ["gallery", page, filter, likedOnly] as const,
     [page, filter, likedOnly],
   );
+  const { data: counts } = useQuery<GalleryCounts>({
+    queryKey: ["gallery-counts", likedOnly],
+    queryFn: () => getGalleryCounts({ liked: likedOnly ? true : undefined }),
+    placeholderData: (previous) => previous,
+  });
 
   const { data, isLoading, error } = useQuery<GalleryResponse, Error>({
     queryKey: galleryQueryKey,
@@ -64,6 +71,7 @@ export default function GalleryPage() {
     onSuccess: ({ id }) => {
       queryClient.invalidateQueries({ queryKey: ["gallery"] });
       queryClient.invalidateQueries({ queryKey: ["image-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["gallery-counts"] });
     },
   });
 
@@ -111,6 +119,7 @@ export default function GalleryPage() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["gallery"] });
+      queryClient.invalidateQueries({ queryKey: ["gallery-counts"] });
     },
   });
 
@@ -213,13 +222,22 @@ export default function GalleryPage() {
                   setFilter(value);
                   setPage(1);
                 }}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors inline-flex items-center gap-1 ${
                   filter === value
                     ? "bg-white text-black"
                     : "text-[#a1a4a5] hover:bg-white/[0.08] hover:text-[#f0f0f0]"
                 }`}
               >
                 {label}
+                {counts && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-xs ${
+                    filter === value
+                      ? "bg-black/20 text-black"
+                      : "bg-white/10 text-[#a1a4a5]"
+                  }`}>
+                    {counts[value]}
+                  </span>
+                )}
               </button>
             ))}
           </div>

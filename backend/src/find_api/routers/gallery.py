@@ -27,7 +27,27 @@ def normalize_metadata(value):
         return parsed if isinstance(parsed, dict) else {}
     return {}
 
+@router.get("/gallery/counts")
+def get_gallery_counts(
+    liked: Optional[bool] = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(Media)
+    if liked is not None:
+        query = query.filter(Media.liked == liked)
 
+    total = query.count()
+    indexed = query.filter(Media.status == "indexed").count()
+    processing = query.filter(Media.status == "processing").count()
+    failed = query.filter(Media.status == "failed").count()
+
+    return {
+        "all": total,
+        "indexed": indexed,
+        "processing": processing,
+        "failed": failed,
+    }
+    
 @router.get("/gallery")
 def get_gallery(
     skip: int = Query(0, ge=0),

@@ -190,7 +190,21 @@ export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
   const response = await api.get<JobStatus>(`/api/status/${jobId}`);
   return response.data;
 };
+export interface GalleryCounts {
+  all: number;
+  indexed: number;
+  processing: number;
+  failed: number;
+}
 
+export const getGalleryCounts = async (params: {
+  liked?: boolean;
+} = {}): Promise<GalleryCounts> => {
+  const response = await api.get<GalleryCounts>("/api/gallery/counts", {
+    params: { liked: params.liked },
+  });
+  return response.data;
+};
 export const getGallery = async (
   params: {
     page?: number;
