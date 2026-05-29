@@ -2,7 +2,7 @@
 
 - **Status:** Partially complete
 - **Date:** 2026-05-21
-- **Last reviewed:** 2026-05-28
+- **Last reviewed:** 2026-05-29
 - **Related:** Issue #183
 - **Current implementation status:** Vault unlock, hide, list, lock, and stream flows exist with encrypted blob storage and tests. The implementation does not fully match this design note yet: it uses AES-GCM instead of the documented ChaCha20-Poly1305 decision, does not bind AEAD associated data to `media_id`/`file_hash`, and should be reviewed against the metadata/vector exclusion requirements before this plan is marked complete.
 
@@ -208,100 +208,30 @@ This note is research only. A follow-up implementation issue should cover:
 
 ## Tamper-Case Test Plan
 
-### 1. Happy Path
+These cases should become focused backend tests when vault encryption is hardened. Each test can use
+small byte strings instead of real images.
 
-**Setup**
-
-* Encrypt a valid vault blob using the correct passphrase.
-
-**Action**
-
-* Decrypt the blob using the same passphrase.
-
-**Expected Result**
-
-* Decryption succeeds and restores the original vault contents correctly.
-
----
-
-### 2. Wrong Passphrase
-
-**Setup**
-
-* Encrypt a valid vault blob using a known passphrase.
-
-**Action**
-
-* Attempt decryption using an incorrect passphrase.
-
-**Expected Result**
-
-* Decryption fails with an authentication or invalid passphrase error.
-* No partial data should be exposed.
-
----
-
-### 3. Tampered Ciphertext
-
-**Setup**
-
-* Encrypt a valid vault blob.
-* Modify one or more bytes in the ciphertext.
-
-**Action**
-
-* Attempt decryption of the modified blob.
-
-**Expected Result**
-
-* Integrity/authentication validation fails.
-* No decrypted data should be returned.
-
----
-
-### 4. Tampered Metadata / AAD
-
-**Setup**
-
-* Encrypt a valid vault blob with associated metadata or AAD.
-* Modify metadata values after encryption.
-
-**Action**
-
-* Attempt decryption using the tampered metadata.
-
-**Expected Result**
-
-* Authentication should fail because metadata no longer matches the encrypted payload.
-* Vault contents should remain inaccessible.
-
----
-
-### 5. Swapped Encrypted Blob
-
-**Setup**
-
-* Create two encrypted vault blobs from different users or vault states.
-
-**Action**
-
-* Replace one encrypted blob with another and attempt decryption.
-
-**Expected Result**
-
-* The vault should reject the swapped blob due to authentication or metadata mismatch.
-* No unrelated vault data should be exposed.
-
----
+| Case | Setup | Action | Expected result |
+| --- | --- | --- | --- |
+| Happy path | Encrypt bytes for a media record with the correct passphrase and AAD built from `vault:v1`, `media_id`, and `file_hash`. | Decrypt with the same passphrase and reconstructed AAD. | Decryption succeeds and returns the original bytes. |
+| Wrong passphrase | Encrypt bytes with a known passphrase. | Attempt unlock/decryption with a different passphrase. | Decryption or unlock fails; no partial plaintext is returned. |
+| Tampered ciphertext | Encrypt bytes, then flip one byte in the ciphertext or tag. | Attempt to decrypt the modified blob with the correct passphrase and AAD. | AEAD authentication fails; no plaintext is returned. |
+| Tampered metadata / AAD | Encrypt bytes for media record A using AAD from record A. | Attempt to decrypt using changed AAD, such as a different `media_id` or `file_hash`. | AEAD authentication fails because the trusted metadata no longer matches the blob. |
+| Swapped encrypted blob | Encrypt two blobs for two different media records with the same vault key. | Swap the encrypted blob, nonce, or metadata reference so record A attempts to serve record B's blob. | Decryption for record A fails because the AAD is bound to record A's `media_id` and `file_hash`; no unrelated vault data is exposed. |
 
 ## Current vs Desired Hardened Behavior
 
 ### Current Behavior
 
-* Current implementation behavior may vary depending on metadata and authentication enforcement.
+- The current implementation uses AES-GCM and verifies ciphertext integrity before streaming
+  decrypted bytes.
+- Wrong passphrase and raw ciphertext/tag tampering are covered by the existing authentication
+  checks.
+- The encrypted blob is not yet authenticated against `media_id` and `file_hash` as AEAD
+  associated data, so a record-level swap is the gap this plan is meant to drive into tests.
 
 ### Desired Hardened Behavior
 
-* All tampered or swapped blobs should fail authentication consistently.
-* No partial plaintext should ever be exposed.
-* Errors should avoid leaking sensitive implementation details.
+- All tampered or swapped blobs should fail authentication consistently.
+- No partial plaintext should ever be exposed.
+- Errors should avoid leaking sensitive implementation details.
