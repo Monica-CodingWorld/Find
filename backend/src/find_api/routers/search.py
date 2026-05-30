@@ -19,6 +19,24 @@ from find_api.services.query_cache import get_cached_query, set_cached_query
 router = APIRouter()
 
 
+def _search_index_signature(db: Session) -> str:
+    """Return a small DB-backed signature for search-visible indexed media."""
+    signature_result = db.execute(
+        text(
+            """
+            SELECT COUNT(*) AS indexed_count, MAX(processed_at) AS max_processed_at
+            FROM media
+            WHERE status = 'indexed' AND vector IS NOT NULL AND is_hidden = false
+        """
+        )
+    )
+    row = signature_result.mappings().first() or {}
+    max_processed = row.get("max_processed_at")
+    if hasattr(max_processed, "isoformat"):
+        max_processed = max_processed.isoformat()
+    return f"{row.get('indexed_count', 0)}:{max_processed or ''}"
+
+
 @router.get("/search")
 def search_images(
     q: str = Query(..., min_length=1, description="Search query"),
@@ -41,8 +59,10 @@ def search_images(
     t_total_start = time.perf_counter()
 
     # Keep debug requests uncached so timing diagnostics describe the actual path.
+    index_signature = None
     if not debug:
-        cached = get_cached_query(q, limit, skip)
+        index_signature = _search_index_signature(db)
+        cached = get_cached_query(q, limit, skip, index_signature)
         if cached is not None:
             return cached["response"]
 
@@ -208,6 +228,8 @@ def search_images(
         }
 
     if not debug:
-        set_cached_query(q, limit, skip, query_embedding, response)
+        set_cached_query(
+            q, limit, skip, index_signature or "", query_embedding, response
+        )
 
     return response

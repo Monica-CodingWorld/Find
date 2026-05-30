@@ -36,6 +36,16 @@ def _fake_search_row(media_id: int = 1, similarity: float = 0.82) -> MagicMock:
     )
 
 
+def _signature_result(token: str = "1:2026-01-01T00:00:00+00:00") -> MagicMock:
+    result = MagicMock()
+    indexed_count, max_processed_at = token.split(":", 1)
+    result.mappings.return_value.first.return_value = {
+        "indexed_count": int(indexed_count),
+        "max_processed_at": max_processed_at,
+    }
+    return result
+
+
 def _mock_search(client, fake_rows, *, params=None, total_count=None):
     """Call /api/search with mocked embeddings and paginated DB responses."""
     mock_embedder = MagicMock()
@@ -46,7 +56,7 @@ def _mock_search(client, fake_rows, *, params=None, total_count=None):
     count_result.scalar.return_value = (
         len(fake_rows) if total_count is None else total_count
     )
-    mock_db.execute.side_effect = [count_result, iter(fake_rows)]
+    mock_db.execute.side_effect = [_signature_result(), count_result, iter(fake_rows)]
 
     def _override():
         yield mock_db
@@ -199,7 +209,10 @@ class TestSearchDiagnostics:
         mock_db = MagicMock()
         count_result = MagicMock()
         count_result.scalar.return_value = len(fake_rows)
-        mock_db.execute.side_effect = [count_result, iter(fake_rows)]
+        side_effects = [count_result, iter(fake_rows)]
+        if not debug:
+            side_effects.insert(0, _signature_result())
+        mock_db.execute.side_effect = side_effects
 
         def _override():
             yield mock_db
@@ -286,13 +299,17 @@ class TestSearchDiagnostics:
 class TestSearchQueryCache:
     """Search query cache behavior."""
 
-    def _mock_cached_search(self, client, rows_by_call):
+    def _mock_cached_search(self, client, request_rows, signatures=None):
         mock_embedder = MagicMock()
         mock_embedder.embed_text.return_value = [0.0] * 768
 
         mock_db = MagicMock()
         side_effects = []
-        for rows in rows_by_call:
+        signatures = signatures or ["1:2026-01-01T00:00:00+00:00"] * len(request_rows)
+        for rows, signature in zip(request_rows, signatures):
+            side_effects.append(_signature_result(signature))
+            if rows is None:
+                continue
             count_result = MagicMock()
             count_result.scalar.return_value = len(rows)
             side_effects.extend([count_result, iter(rows)])
@@ -319,7 +336,9 @@ class TestSearchQueryCache:
 
     def test_repeated_query_reuses_cached_response(self, client):
         row = _fake_search_row(media_id=11)
-        mock_db, mock_embedder, patches = self._mock_cached_search(client, [[row]])
+        mock_db, mock_embedder, patches = self._mock_cached_search(
+            client, [[row], None]
+        )
 
         try:
             with patches[0], patches[1]:
@@ -332,7 +351,7 @@ class TestSearchQueryCache:
         assert second.status_code == 200
         assert first.json() == second.json()
         mock_embedder.embed_text.assert_called_once_with("  Sunset   Beach  ")
-        assert mock_db.execute.call_count == 2
+        assert mock_db.execute.call_count == 4
 
     def test_pagination_change_misses_cache(self, client):
         mock_db, mock_embedder, patches = self._mock_cached_search(
@@ -350,7 +369,7 @@ class TestSearchQueryCache:
         assert first.status_code == 200
         assert second.status_code == 200
         assert mock_embedder.embed_text.call_count == 2
-        assert mock_db.execute.call_count == 4
+        assert mock_db.execute.call_count == 6
 
     def test_invalidated_cache_forces_recompute(self, client):
         mock_db, mock_embedder, patches = self._mock_cached_search(
@@ -369,4 +388,26 @@ class TestSearchQueryCache:
         assert first.status_code == 200
         assert second.status_code == 200
         assert mock_embedder.embed_text.call_count == 2
-        assert mock_db.execute.call_count == 4
+        assert mock_db.execute.call_count == 6
+
+    def test_index_signature_change_misses_cache(self, client):
+        mock_db, mock_embedder, patches = self._mock_cached_search(
+            client,
+            [[_fake_search_row(media_id=41)], [_fake_search_row(media_id=42)]],
+            signatures=[
+                "1:2026-01-01T00:00:00+00:00",
+                "2:2026-01-02T00:00:00+00:00",
+            ],
+        )
+
+        try:
+            with patches[0], patches[1]:
+                first = client.get("/api/search", params={"q": "sunset"})
+                second = client.get("/api/search", params={"q": "sunset"})
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert mock_embedder.embed_text.call_count == 2
+        assert mock_db.execute.call_count == 6
