@@ -84,7 +84,7 @@ export default function NavBar() {
   // }, [pathname]);
   useEffect(() => {
     setIsDrawerOpen(false);
-  }, []);
+  }, [pathname]);
   // Handle escape key to close drawer
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
