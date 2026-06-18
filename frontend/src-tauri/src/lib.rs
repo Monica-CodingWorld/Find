@@ -12,6 +12,7 @@ use std::time::Duration;
 #[derive(Default)]
 struct BackendState {
     running: bool,
+    shutting_down: bool,
     child: Option<CommandChild>,
 }
 
@@ -39,9 +40,13 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 log::info!("App exiting - terminating backend sidecar.");
                 let mut s = state_for_exit.lock().unwrap();
+                s.shutting_down = true;
                 if let Some(child) = s.child.take() {
-                    let _ = child.kill();
-                    log::info!("Backend sidecar killed.");
+                    if let Err(e) = child.kill() {
+                        log::error!("Failed to kill backend sidecar: {}", e);
+                    } else {
+                        log::info!("Backend sidecar killed.");
+                    }
                 }
                 s.running = false;
             }
@@ -66,6 +71,10 @@ async fn supervise_backend(app: tauri::AppHandle, state: SharedState) {
             }
             Err(e) => {
                 state.lock().unwrap().running = false;
+                if state.lock().unwrap().shutting_down {
+                    log::info!("App is shutting down - stopping supervisor.");
+                    break;
+                }
                 retry_count += 1;
                 log::error!("Backend crashed: {}. Retry {}/{}", e, retry_count, MAX_RETRIES);
                 if retry_count >= MAX_RETRIES {
@@ -89,10 +98,18 @@ async fn wait_for_health() -> Result<(), String> {
 
     for attempt in 1..=MAX_ATTEMPTS {
         tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
-        match reqwest::get(HEALTH_URL).await {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+        match client.get(HEALTH_URL).send().await {
             Ok(resp) if resp.status().is_success() => {
-                log::info!("Backend health check passed on attempt {}.", attempt);
-                return Ok(());
+                if let Ok(body) = resp.text().await {
+                    if body.contains("healthy") {
+                        log::info!("Backend health check passed on attempt {}.", attempt);
+                        return Ok(());
+                    }
+                }
             }
             _ => {
                 log::info!("Health check attempt {}/{} - not ready yet.", attempt, MAX_ATTEMPTS);
@@ -129,7 +146,12 @@ async fn start_sidecar(app: &tauri::AppHandle, state: &SharedState) -> Result<()
         }
         Err(e) => {
             log::error!("Health check failed: {}", e);
-            let _ = app.emit("backend-failed", e.clone());
+            let mut s = state.lock().unwrap();
+            if let Some(child) = s.child.take() {
+                let _ = child.kill();
+                log::info!("Killed unhealthy backend sidecar.");
+            }
+            s.running = false;
             return Err(e);
         }
     }

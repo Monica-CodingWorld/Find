@@ -3,6 +3,7 @@ MinIO storage backend implementation
 Implements StorageBackend interface for MinIO object storage
 """
 
+import asyncio
 import json
 from datetime import timedelta
 from urllib.parse import urlparse, urlunparse
@@ -57,8 +58,9 @@ class MinIOStorageBackend(StorageBackend):
     async def init_storage(self) -> None:
         """Initialize MinIO storage - create bucket if not exists"""
         try:
-            if not self.client.bucket_exists(self.bucket):
-                self.client.make_bucket(self.bucket)
+            exists = await asyncio.to_thread(self.client.bucket_exists, self.bucket)
+            if not exists:
+                await asyncio.to_thread(self.client.make_bucket, self.bucket)
                 logger.info(f"Created MinIO bucket: {self.bucket}")
             else:
                 logger.info(f"MinIO bucket exists: {self.bucket}")
@@ -119,15 +121,18 @@ class MinIOStorageBackend(StorageBackend):
 
     async def get_file(self, object_name: str) -> bytes:
         """Download file from MinIO"""
+        response = None
         try:
             response = self.client.get_object(self.bucket, object_name)
             data = response.read()
-            response.close()
-            response.release_conn()
             return data
         except S3Error as e:
             logger.error(f"Failed to download file from MinIO: {e}")
             raise StorageException(f"MinIO download failed: {e}")
+        finally:
+            if response is not None:
+                response.close()
+                response.release_conn()
 
     async def download_file_to_path(self, object_name: str, destination_path: str) -> None:
         """Stream file from MinIO to local path"""
@@ -243,3 +248,5 @@ async def upload_thumbnail(
         "thumbnail_width": width,
         "thumbnail_height": height,
     }
+
+

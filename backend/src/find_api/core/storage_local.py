@@ -4,6 +4,7 @@ Implements StorageBackend interface for local file storage (desktop mode)
 """
 
 import os
+import asyncio
 import logging
 from pathlib import Path
 from typing import Optional
@@ -53,8 +54,10 @@ class LocalStorageBackend(StorageBackend):
             full_path = self._validate_path(object_name)
             full_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(full_path, "wb") as f:
-                f.write(file_data)
+            def _write():
+                with open(full_path, "wb") as f:
+                    f.write(file_data)
+            await asyncio.to_thread(_write)
 
             logger.info(f"Uploaded file to local storage: {object_name}")
             return object_name
@@ -70,11 +73,13 @@ class LocalStorageBackend(StorageBackend):
         try:
             full_path = self._validate_path(object_name)
 
-            if not full_path.exists():
+            if not full_path.is_file():
                 raise StorageException(f"File not found: {object_name}")
 
-            with open(full_path, "rb") as f:
-                data = f.read()
+            def _read():
+                with open(full_path, "rb") as f:
+                    return f.read()
+            data = await asyncio.to_thread(_read)
 
             logger.info(f"Downloaded file from local storage: {object_name}")
             return data
@@ -90,7 +95,7 @@ class LocalStorageBackend(StorageBackend):
         try:
             full_path = self._validate_path(object_name)
 
-            if not full_path.exists():
+            if not full_path.is_file():
                 raise StorageException(f"File not found: {object_name}")
 
             dest = Path(destination_path)
@@ -117,7 +122,7 @@ class LocalStorageBackend(StorageBackend):
         try:
             full_path = self._validate_path(object_name)
 
-            if not full_path.exists():
+            if not full_path.is_file():
                 raise StorageException(f"File not found: {object_name}")
 
             relative_path = full_path.relative_to(self.base_path)
@@ -134,7 +139,7 @@ class LocalStorageBackend(StorageBackend):
         try:
             full_path = self._validate_path(object_name)
 
-            if full_path.exists():
+            if full_path.is_file():
                 full_path.unlink()
                 logger.info(f"Deleted file from local storage: {object_name}")
             else:
@@ -150,9 +155,13 @@ class LocalStorageBackend(StorageBackend):
         """Check if file exists in local filesystem"""
         try:
             full_path = self._validate_path(object_name)
-            return full_path.exists()
+            return full_path.is_file()
         except StorageException:
             raise
         except Exception as e:
             logger.error(f"Failed to check file existence: {e}")
             raise StorageException(f"Existence check failed: {e}")
+
+
+
+
